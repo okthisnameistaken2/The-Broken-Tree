@@ -1,19 +1,19 @@
 let modInfo = {
-	name: "The ??? Tree",
-	author: "nobody",
+	name: "The Broken Tree",
+	author: "okthisnameistaken",
 	pointsName: "points",
 	modFiles: ["layers.js", "tree.js"],
 
-	discordName: "",
-	discordLink: "",
+	discordName: "eggnatura",
+	discordLink: "no link :P",
 	initialStartPoints: new Decimal (10), // Used for hard resets and new players
 	offlineLimit: 1,  // In hours
 }
 
 // Set your version in num and name
 let VERSION = {
-	num: "0.0",
-	name: "Literally nothing",
+	num: "1.0",
+	name: "The start",
 }
 
 let changelog = `<h1>Changelog:</h1><br>
@@ -42,6 +42,11 @@ function getPointGen() {
 		return new Decimal(0)
 
 	let gain = new Decimal(1)
+	if (hasUpgrade('p', 11)) gain = gain.times(2)
+	if (hasUpgrade('p', 12)) gain = gain.times(3)
+	if (hasUpgrade('p', 13)) gain = gain.times(5)
+	if (hasUpgrade("p", 14)) gain = gain.times(upgradeEffect("p", 14))
+	gain = gain.times(layers.p.buyables[11].effect(getBuyableAmount("p", 11)))
 	return gain
 }
 
