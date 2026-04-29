@@ -10,7 +10,7 @@ addLayer("p", {
         }
     },
 
-    color: "#e10c81",
+    color: "#e4479d",
 
     requires: new Decimal(10),
 
@@ -373,6 +373,11 @@ upgrades: {
     title: "Automation begins",
     description: "Automatically buy Prestige Buyables 11 and 12",
     cost: new Decimal("1e35"),
+},
+41: {
+    title: "Remember that other upgrade?",
+    description: "Improves prestige exponent from 0.6 to 0.65",
+    cost: new Decimal("1e50"),
 },
 },
 update(diff) {
