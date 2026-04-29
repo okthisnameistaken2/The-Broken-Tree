@@ -47,7 +47,11 @@ function getPointGen() {
 	if (hasUpgrade('p', 13)) gain = gain.times(5)
 	if (hasUpgrade("p", 14)) gain = gain.times(upgradeEffect("p", 14))
 	gain = gain.times(layers.p.buyables[11].effect(getBuyableAmount("p", 11)))
+	if (hasUpgrade("s", 21)) {
+    gain = gain.times(upgradeEffect("s", 21))
+}
 	return gain
+
 }
 
 // You can add non-layer related variables that should to into "player" and be saved here, along with default values
