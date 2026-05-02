@@ -109,9 +109,14 @@ addLayer("p", {
         description: "Upgrade 14 is stronger",
         cost: new Decimal(3000),
 
-        effect() {
-            return new Decimal(1.5)
-        },
+       effect() {
+    let base = new Decimal(1.5)
+
+    // particle boost
+    let particleBoost = player.s.particles.plus(1).pow(0.01)
+
+    return base.times(particleBoost)
+},
 
           effectDisplay() {
              return "×" + format(this.effect()) + " to Upgrade 14 scaling"
@@ -124,6 +129,32 @@ addLayer("p", {
 
     unlocked() {
         return true
+    },
+},
+19: {
+    title: "SO OP???",
+    description: "Points boost Sacrifice point gain",
+    cost: new Decimal(1e75),
+
+    effect() {
+        return player.points.plus(1).pow(0.05)
+    },
+
+    effectDisplay() {
+        return "×" + format(this.effect())
+    },
+
+    unlocked() {
+        return hasUpgrade("s", 15)
+    },
+},
+21: {
+    title: "No, this is OP",
+    description: "Buyable 11 softcap is weaker",
+    cost: new Decimal(1e200),
+
+    unlocked() {
+        return hasUpgrade("s", 15)
     },
 },
     },
@@ -145,15 +176,24 @@ addLayer("p", {
 
     let cost = new Decimal(10).times(base.pow(x))
 
-    // ===== NEW 50+ EXPONENTIAL SOFTCAP =====
     if (amt.gte(20)) {
-        let overflow = amt.minus(20)
+    let overflow = amt.minus(20)
 
-        // smooth exponential pressure ramp
-        let softcap = new Decimal(1.15).pow(overflow.div(10)).times(overflow.pow(0.2)).plus(1)
+    // base strength
+    let strength = 1.15
 
-        cost = cost.pow(softcap)
+    // upgrade makes scaling weaker
+    if (hasUpgrade("p", 21)) {
+        strength = 1.08
     }
+
+    let softcap = new Decimal(strength)
+        .pow(overflow.div(10))
+        .times(overflow.pow(0.2))
+        .plus(1)
+
+    cost = cost.pow(softcap)
+}
 
     return cost
 },
@@ -251,6 +291,9 @@ update(diff) {
         player.p.points = player.p.points.plus(gain.times(0.10).times(diff))
     }
 },
+keepUpgrades() {
+    return hasMilestone("s", 3)
+},
 })
 addLayer("s", {
     name: "sacrifice",
@@ -262,6 +305,7 @@ addLayer("s", {
         return {
             unlocked: false,
             points: new Decimal(0),
+            particles: new Decimal(0),
         }
     },
 
@@ -288,7 +332,13 @@ addLayer("s", {
     },
 
     gainMult() {
-        return new Decimal(1)
+        let mult = new Decimal(1)
+
+        if (hasUpgrade("p", 19)) {
+        mult = mult.times(upgradeEffect("p", 19))
+    }
+    return mult
+
     },
 
     gainExp() {
@@ -324,6 +374,14 @@ milestones: {
 
     done() {
         return player.s.points.gte(10000)
+    },
+},
+3: {
+    requirementDescription: "1e400 Sacrifice Points",
+    effectDescription: "Keep all Prestige upgrades on reset",
+
+    done() {
+        return player.s.points.gte("1e400")
     },
 },
 },
@@ -367,37 +425,97 @@ upgrades: {
 14: {
     title: "Remember that other upgrade?",
     description: "Improves prestige exponent from 0.6 to 0.65",
-    cost: new Decimal("1e50"),
+    cost: new Decimal("1e6"),
+},
+15: {
+    title: "I love this upgrade",
+    description: "Unlock 2 new Prestige upgrades",
+    cost: new Decimal("1e12"),
+},
+16: {
+    title: "Particle Research",
+    description: "Unlock the Particles tab",
+    cost: new Decimal("1e250"),
 },
 },
 update(diff) {
 
-    if (hasUpgrade("s", 13)) {
-
-        // Buyable 11 max
-        while (layers.p.buyables[11].canAfford()) {
-            layers.p.buyables[11].buy()
-        }
-
-        // Buyable 12 max
-        while (layers.p.buyables[12].canAfford()) {
-            layers.p.buyables[12].buy()
-        }
-    }
-    if (hasMilestone("s", 2)) {
-
-        let gain = getResetGain("p")
-
-        // 1000% = x10
-        let perSecond = gain.times(10)
-
-        player.p.points = player.p.points.plus(perSecond.times(diff))
-    }
-
-
-    // keep your unlock logic
-    if (!player.s.unlocked && player.points.gte("1e8")) {
+    // unlock
+    if (!player.s.unlocked && player.points.gte("1e10")) {
         player.s.unlocked = true
+    }
+
+    // particles
+    if (hasUpgrade("s", 16)) {
+        let gain = player.s.points.plus(1).log10().plus(1)
+        player.s.particles = player.s.particles.plus(gain.times(diff))
+    }
+
+    // passive prestige ONLY if milestone 2
+    if (hasMilestone("s", 2)) {
+        let gain = getResetGain("p") || new Decimal(0)
+        player.p.points = player.p.points.plus(gain.times(10).times(diff))
+    }
+    if (hasMilestone("s", 3)) {
+    let upgrades = [11,12,13,14,15,16,17,18,19,20,21]
+
+    for (let id of upgrades) {
+        if (!hasUpgrade("p", id)) {
+            player.p.upgrades.push(id)
+        }
+    }
+}
+if (hasUpgrade("s", 13)) {
+
+    for (let id of [11, 12]) {
+        let b = layers.p.buyables[id]
+
+        while (b.canAfford()) {
+            b.buy()
+        }
+    }
+}
+},
+subtabs: {
+    main: "Main",
+    particles: "Particles",
+},
+tabFormat: {
+    Main: {
+        content: [
+            "main-display",
+            "prestige-button",
+            "milestones",
+            "upgrades",
+        ],
+    },
+
+   Particles: {
+    unlocked() {
+        return hasUpgrade("s", 16)
+    },
+    content: [
+        "main-display",
+
+        ["display-text", function () {
+            return "You have " + format(player.s.particles) + " particles"
+        }],
+
+        ["display-text", function () {
+            let boost = player.s.particles.plus(1).pow(0.01)
+
+            return "Boost to Prestige Upgrade 17: ×" + format(boost)
+        }],
+    ],
+},
+},
+doReset(resettingLayer) {
+    if (resettingLayer == "s") {
+
+        player.p.points = new Decimal(0)
+        player.p.buyables = {}
+
+        return
     }
 },
 })
