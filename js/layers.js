@@ -20,15 +20,20 @@ addLayer("p", {
 
     type: "normal",
     exponent() {
-    return hasUpgrade("p", 18) ? 0.6 : 0.5
-},
+    let exp = 0.5
+
+    if (hasUpgrade("p", 18)) exp = 0.6
+    if (hasUpgrade("s", 14)) exp += 0.05
+
+    return exp
+    },
 
     gainMult() {
         let mult = new Decimal(1)
         if (hasUpgrade("p", 15)) mult = mult.times(2)
-        if (hasUpgrade("p", 21)) mult = mult.times(upgradeEffect("p", 21))
+        if (hasUpgrade("p", 16)) mult = mult.times(upgradeEffect("p", 16))
         if (hasUpgrade("s", 11)) {
-        mult = mult.times(upgradeEffect("s", 11).prestige)
+        mult = mult.times(5)
         }
         return mult
     },
@@ -131,8 +136,8 @@ addLayer("p", {
     let base = new Decimal(3)
 
     // ===== YOUR ORIGINAL SCALING =====
-    if (amt.gte(15)) {
-        let extra = amt.minus(15).times(0.2)
+    if (amt.gte(10)) {
+        let extra = amt.minus(10).times(0.2)
         base = base.plus(extra)
 
         if (base.gt(5)) base = new Decimal(5)
@@ -141,8 +146,8 @@ addLayer("p", {
     let cost = new Decimal(10).times(base.pow(x))
 
     // ===== NEW 50+ EXPONENTIAL SOFTCAP =====
-    if (amt.gte(50)) {
-        let overflow = amt.minus(50)
+    if (amt.gte(20)) {
+        let overflow = amt.minus(20)
 
         // smooth exponential pressure ramp
         let softcap = new Decimal(1.15).pow(overflow.div(10)).times(overflow.pow(0.2)).plus(1)
@@ -167,9 +172,9 @@ addLayer("p", {
 
     let tag = ""
 
-    if (amt.gte(50)) {
+    if (amt.gte(20)) {
         tag = " (softcapped^2)"
-    } else if (amt.gte(15)) {
+    } else if (amt.gte(10)) {
         tag = " (softcapped)"
     }
 
@@ -246,17 +251,6 @@ update(diff) {
         player.p.points = player.p.points.plus(gain.times(0.10).times(diff))
     }
 },
-doReset(resettingLayer) {
-    if (resettingLayer == "s") {
-
-        if (hasMilestone("s", 2)) {
-
-            let keep = new Set([11, 12, 13, 14])
-
-            player.p.upgrades = player.p.upgrades.filter(id => keep.has(id))
-        }
-    }
-},
 })
 addLayer("s", {
     name: "sacrifice",
@@ -286,11 +280,11 @@ addLayer("s", {
     layerShown() {
     return player[this.layer].unlocked
 },
-    requires: new Decimal("1e10"),
+    requires: new Decimal("1e28"),
 
     // 🔒 ONLY ALLOW RESET AT 1e20
     canReset() {
-        return player.points.gte("1e10")
+        return player.points.gte("1e28")
     },
 
     gainMult() {
@@ -311,7 +305,7 @@ addLayer("s", {
         },
     ],
     update(diff) {
-    if (!player[this.layer].unlocked && player.points.gte("1e8")) {
+    if (!player[this.layer].unlocked && player.points.gte("1e10")) {
         player[this.layer].unlocked = true
     }
 },
@@ -324,18 +318,14 @@ milestones: {
             return player[this.layer].points.gte(5)
         },
     },
-12: {
-        requirementDescription: "2e7 Sacrifice Points",
-        effectDescription: "Keep upgrades on reset.",
+2: {
+    requirementDescription: "10,000 Sacrifice Points",
+    effectDescription: "Gain 1000% of prestige reset gain per second",
 
-        done() {
-            return player.s.points.gte("2e7")
-        },
-
-        onComplete() {
-            // optional hook (not always used in TMT, so we also enforce in update)
-        },
+    done() {
+        return player.s.points.gte(10000)
     },
+},
 },
 upgrades: {
     11: {
@@ -356,25 +346,25 @@ upgrades: {
             return "×" + format(eff.points) + " points, ×" + format(eff.prestige) + " prestige"
         },
     },
-    21: {
+    12: {
     title: "I know you were missing this kind of upgrade",
     description: "Sacrifice points boost point gain",
-    cost: new Decimal("1e6"),
+    cost: new Decimal("500"),
 
     effect() {
-        return player.s.points.plus(1).pow(0.25)
+        return player.s.points.plus(1).pow(0.40)
     },
 
     effectDisplay() {
         return "×" + format(this.effect())
     },
 },
-31: {
+13: {
     title: "Automation begins",
     description: "Automatically buy Prestige Buyables 11 and 12",
-    cost: new Decimal("1e35"),
+    cost: new Decimal("25000"),
 },
-41: {
+14: {
     title: "Remember that other upgrade?",
     description: "Improves prestige exponent from 0.6 to 0.65",
     cost: new Decimal("1e50"),
@@ -382,7 +372,7 @@ upgrades: {
 },
 update(diff) {
 
-    if (hasUpgrade("s", 31)) {
+    if (hasUpgrade("s", 13)) {
 
         // Buyable 11 max
         while (layers.p.buyables[11].canAfford()) {
@@ -394,6 +384,16 @@ update(diff) {
             layers.p.buyables[12].buy()
         }
     }
+    if (hasMilestone("s", 2)) {
+
+        let gain = getResetGain("p")
+
+        // 1000% = x10
+        let perSecond = gain.times(10)
+
+        player.p.points = player.p.points.plus(perSecond.times(diff))
+    }
+
 
     // keep your unlock logic
     if (!player.s.unlocked && player.points.gte("1e8")) {
